@@ -1,4 +1,4 @@
-# @kubedoll/pulumi-playit
+# @kubedoll-heavy-industries/pulumi-playit
 
 > **Status: alpha / unstable API — expect breakage between versions.**
 
@@ -13,9 +13,9 @@ The PlayIt agent running in your environment (typically a Kubernetes pod or a pr
 ## Installation
 
 ```sh
-pnpm add @kubedoll/pulumi-playit
+pnpm add @kubedoll-heavy-industries/pulumi-playit
 # or
-npm install @kubedoll/pulumi-playit
+npm install @kubedoll-heavy-industries/pulumi-playit
 ```
 
 Peer dependency: `@pulumi/pulumi ^3.0.0`
@@ -35,7 +35,7 @@ Peer dependency: `@pulumi/pulumi ^3.0.0`
 
 ```typescript
 import * as pulumi from '@pulumi/pulumi';
-import { PlayitTunnel } from '@kubedoll/pulumi-playit';
+import { PlayitTunnel } from '@kubedoll-heavy-industries/pulumi-playit';
 
 const config = new pulumi.Config();
 const apiKey = config.requireSecret('playitApiKey');

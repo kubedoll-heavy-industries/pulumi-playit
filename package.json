@@ -1,5 +1,5 @@
 {
-  "name": "@kubedoll/pulumi-playit",
+  "name": "@kubedoll-heavy-industries/pulumi-playit",
   "version": "0.1.0",
   "description": "Pulumi dynamic resource for PlayIt.gg tunnel management",
   "keywords": ["pulumi", "playit", "tunnel", "game-server", "infrastructure"],

@@ -48,7 +48,7 @@ jobs:
           node-version: '20'
           cache: 'pnpm'
           registry-url: 'https://npm.pkg.github.com'
-          scope: '@kubedoll'
+          scope: '@kubedoll-heavy-industries'
 
       - name: Install dependencies
         run: pnpm install --frozen-lockfile

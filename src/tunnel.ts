@@ -281,7 +281,7 @@ const playitTunnelProvider: pulumi.dynamic.ResourceProvider = {
  *
  * @example
  * ```typescript
- * import { PlayitTunnel } from '@kubedoll/pulumi-playit';
+ * import { PlayitTunnel } from '@kubedoll-heavy-industries/pulumi-playit';
  *
  * const terrariaTunnel = new PlayitTunnel('terraria-tunnel', {
  *   apiKey: pulumi.secret(process.env.PLAYIT_API_KEY!),
