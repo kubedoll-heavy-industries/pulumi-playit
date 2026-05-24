@@ -28,6 +28,7 @@
     "build:watch": "tsc -p . --watch",
     "clean": "rm -rf dist",
     "typecheck": "tsc --noEmit",
+    "prepare": "pnpm run build",
     "prepublishOnly": "pnpm run build"
   },
   "peerDependencies": {

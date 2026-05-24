@@ -10,17 +10,15 @@
  *   as a Pulumi secret so it never appears in plaintext state.
  *
  * Local address semantics:
- *   The PlayIt agent routes public traffic to the in-cluster IP:port pair you
+ *   The PlayIt agent routes public traffic to the in-cluster host:port pair you
  *   specify in `localAddress`. Use a fully-qualified Kubernetes service DNS name:
  *
  *     <svc-name>.<namespace>.svc.cluster.local:<port>
  *
- *   The agent resolves the name at runtime, so the IP you provide to the API
- *   must be resolvable from the node where the agent pod runs. Use the ClusterIP
- *   or a stable DNS-resolvable name — the older `/tunnels/create` endpoint takes
- *   an IP, so we resolve the hostname at Pulumi deploy time via `getaddrinfo`.
- *   For pure in-cluster routing this works fine because the agent itself does
- *   the forwarding.
+ *   The agent resolves the hostname at runtime from the node where the agent pod
+ *   runs — no DNS lookup is performed during `pulumi up`. You can safely pass
+ *   cluster-internal DNS names (svc.cluster.local) even when deploying from
+ *   outside the cluster.
  *
  * Agent ID:
  *   Pass the agent UUID returned by the PlayIt dashboard (or discovered via
@@ -30,7 +28,6 @@
 
 import * as pulumi from "@pulumi/pulumi";
 import { type } from "arktype";
-import * as dnsPromises from "node:dns/promises";
 
 import {
   createTunnel,
@@ -116,8 +113,6 @@ interface TunnelInputs {
 /** Outputs enriched with the created tunnel's UUID. */
 interface TunnelOutputs extends TunnelInputs {
   tunnelId: string;
-  /** Resolved IP at creation time (informational). */
-  resolvedIp: string;
 }
 
 // ============================================================================
@@ -148,41 +143,22 @@ function parseAddress(address: string): { host: string; port: number } {
   return { host, port };
 }
 
-/**
- * Resolve a hostname to its first IPv4 address.
- * Falls back to the host string as-is if it is already an IP.
- */
-async function resolveHost(host: string): Promise<string> {
-  // Already an IPv4 address?
-  if (/^\d{1,3}(\.\d{1,3}){3}$/.test(host)) return host;
-
-  try {
-    const addresses = await dnsPromises.resolve4(host);
-    if (addresses.length === 0 || addresses[0] === undefined) throw new Error("No A records returned");
-    return addresses[0];
-  } catch {
-    // Fallback: use getaddrinfo (handles /etc/hosts, search domains, etc.)
-    const { address } = await dnsPromises.lookup(host, { family: 4 });
-    return address;
-  }
-}
-
-function buildCreateRequest(inputs: TunnelInputs, resolvedIp: string): ReqTunnelsCreate {
-  const { host: _host, port } = parseAddress(inputs.localAddress);
+function buildCreateRequest(inputs: TunnelInputs): ReqTunnelsCreate {
+  const { host, port } = parseAddress(inputs.localAddress);
 
   const origin: TunnelOriginCreate = inputs.agentId
     ? {
         type: "agent",
         data: {
           agent_id: inputs.agentId,
-          local_ip: resolvedIp,
+          local_ip: host,
           local_port: port,
         } satisfies AssignedAgentCreate,
       }
     : {
         type: "default",
         data: {
-          local_ip: resolvedIp,
+          local_ip: host,
           local_port: port,
         },
       };
@@ -216,13 +192,10 @@ const playitTunnelProvider: pulumi.dynamic.ResourceProvider = {
   // create
   // ------------------------------------------------------------------
   async create(inputs: TunnelInputs): Promise<pulumi.dynamic.CreateResult> {
-    const { host } = parseAddress(inputs.localAddress);
-    const resolvedIp = await resolveHost(host);
-
-    const req = buildCreateRequest(inputs, resolvedIp);
+    const req = buildCreateRequest(inputs);
     const tunnelId = await createTunnel(inputs.apiKey, req);
 
-    const outs: TunnelOutputs = { ...inputs, tunnelId, resolvedIp };
+    const outs: TunnelOutputs = { ...inputs, tunnelId };
     return { id: tunnelId, outs };
   },
 
@@ -274,19 +247,17 @@ const playitTunnelProvider: pulumi.dynamic.ResourceProvider = {
   // update  (in-place update of local address / agent / enabled state)
   // ------------------------------------------------------------------
   async update(id: string, _olds: TunnelOutputs, news: TunnelInputs): Promise<pulumi.dynamic.UpdateResult> {
-    const { host } = parseAddress(news.localAddress);
-    const resolvedIp = await resolveHost(host);
-    const { port } = parseAddress(news.localAddress);
+    const { host, port } = parseAddress(news.localAddress);
 
     await updateTunnel(news.apiKey, {
       tunnel_id: id,
-      local_ip: resolvedIp,
+      local_ip: host,
       local_port: port,
       agent_id: news.agentId ?? null,
       enabled: true,
     });
 
-    const outs: TunnelOutputs = { ...news, tunnelId: id, resolvedIp };
+    const outs: TunnelOutputs = { ...news, tunnelId: id };
     return { outs };
   },
 
@@ -326,12 +297,6 @@ export class PlayitTunnel extends pulumi.dynamic.Resource {
    * Use this to correlate with the PlayIt dashboard.
    */
   public readonly tunnelId!: pulumi.Output<string>;
-
-  /**
-   * The resolved IP address of the local service at tunnel creation time.
-   * Informational only — the agent handles runtime routing.
-   */
-  public readonly resolvedIp!: pulumi.Output<string>;
 
   constructor(
     name: string,
@@ -377,9 +342,8 @@ export class PlayitTunnel extends pulumi.dynamic.Resource {
         agentId: args.agentId,
         region: args.region,
         portAllocationId: args.portAllocationId,
-        // Outputs — set to undefined so Pulumi knows provider fills them
+        // Output — set to undefined so Pulumi knows provider fills it
         tunnelId: undefined,
-        resolvedIp: undefined,
       },
       {
         ...opts,

@@ -70,16 +70,13 @@ const vintageStoryTunnel = new PlayitTunnel('vintage-story', {
 
 ### Kubernetes in-cluster usage
 
-When the PlayIt agent runs as a Kubernetes pod, use the Kubernetes service DNS name as `localAddress`. The name is resolved to a ClusterIP at Pulumi deploy time (from wherever `pulumi up` runs — typically your laptop or CI):
+When the PlayIt agent runs as a Kubernetes pod, use the Kubernetes service DNS name as `localAddress`. The hostname is passed directly to the PlayIt API and the agent resolves it at runtime from the node where the pod runs — no DNS lookup happens during `pulumi up`. This means cluster-internal DNS names (`svc.cluster.local`) work correctly even when deploying from outside the cluster.
 
 ```typescript
 const tunnel = new PlayitTunnel('my-game', {
   apiKey,
   name: 'my-game',
   portType: 'tcp',
-  // Resolved at deploy time — must be reachable from the machine running pulumi up.
-  // If you are deploying from outside the cluster you must use the ClusterIP directly,
-  // or use a LoadBalancer/NodePort service instead.
   localAddress: 'my-game.default.svc.cluster.local:25565',
 });
 ```
@@ -136,13 +133,11 @@ const tunnel2 = new PlayitTunnel('reserved-port', {
 
 ## Caveats
 
-1. **DNS resolution at deploy time.** The PlayIt API requires an IP address, not a hostname. `localAddress` hostnames are resolved during `pulumi up` on the machine running Pulumi. If you deploy from outside a Kubernetes cluster and use `svc.cluster.local` names, resolution will fail. Use the service's ClusterIP or a DNS name reachable from your deploy environment (LoadBalancer IP, NodePort, etc.).
+1. **Multi-port tunnels require a premium account.** `portCount > 1` (e.g. Valheim's 3-port UDP range) requires a PlayIt premium subscription. The API will return an error if you attempt this on a free account.
 
-2. **Multi-port tunnels require a premium account.** `portCount > 1` (e.g. Valheim's 3-port UDP range) requires a PlayIt premium subscription. The API will return an error if you attempt this on a free account.
+2. **`portType: 'both'` allocates a single port for both TCP and UDP.** This is correct for games like Vintage Story that use the same port number for both protocols. It is not the same as allocating two separate ports.
 
-3. **`portType: 'both'` allocates a single port for both TCP and UDP.** This is correct for games like Vintage Story that use the same port number for both protocols. It is not the same as allocating two separate ports.
-
-4. **The agent must be registered before tunnels are useful.** This resource only manages the SaaS-side tunnel record. The agent pod/process must already be running and registered with your PlayIt account before it can forward traffic. The tunnel will appear in the dashboard immediately but will show as "offline" until the agent connects.
+3. **The agent must be registered before tunnels are useful.** This resource only manages the SaaS-side tunnel record. The agent pod/process must already be running and registered with your PlayIt account before it can forward traffic. The tunnel will appear in the dashboard immediately but will show as "offline" until the agent connects.
 
 ## Contributing
 
