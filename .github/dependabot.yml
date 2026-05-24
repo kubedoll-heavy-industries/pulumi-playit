@@ -1,0 +1,31 @@
+version: 2
+updates:
+  # npm dependencies — keep exact pins, surface upstream releases as PRs.
+  - package-ecosystem: npm
+    directory: "/"
+    schedule:
+      interval: weekly
+      day: monday
+    open-pull-requests-limit: 10
+    versioning-strategy: increase   # bump the exact pin instead of widening to a range
+    groups:
+      pulumi:
+        patterns:
+          - "@pulumi/*"
+      types:
+        patterns:
+          - "@types/*"
+    labels:
+      - dependencies
+      - npm
+
+  # GitHub Actions — keep SHAs current. Dependabot rewrites the SHA + comment.
+  - package-ecosystem: github-actions
+    directory: "/"
+    schedule:
+      interval: weekly
+      day: monday
+    open-pull-requests-limit: 10
+    labels:
+      - dependencies
+      - github-actions

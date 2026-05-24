@@ -9,17 +9,17 @@ importers:
   .:
     dependencies:
       arktype:
-        specifier: ^2.1.27
+        specifier: 2.2.0
         version: 2.2.0
     devDependencies:
       '@pulumi/pulumi':
-        specifier: ^3.209.0
+        specifier: 3.243.0
         version: 3.243.0(typescript@5.9.3)
       '@types/node':
-        specifier: ^22.0.0
+        specifier: 22.19.19
         version: 22.19.19
       typescript:
-        specifier: ^5.9.3
+        specifier: 5.9.3
         version: 5.9.3
 
 packages:

@@ -7,18 +7,25 @@ on:
   pull_request:
     branches: [main]
 
+# Default to least privilege; override per-job as needed.
+permissions: {}
+
 jobs:
   build:
     name: Build & Typecheck
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
     steps:
-      - uses: actions/checkout@v4
-
-      - uses: pnpm/action-setup@v4
-
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
         with:
-          node-version: '20'
+          persist-credentials: false
+
+      - uses: pnpm/action-setup@fc06bc1257f339d1d5d8b3a19a8cae5388b55320 # v4.4.0
+
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: '20.18'
           cache: 'pnpm'
 
       - name: Install dependencies
@@ -38,14 +45,18 @@ jobs:
     permissions:
       contents: read
       packages: write
+      id-token: write   # required for Sigstore build provenance attestations
+      attestations: write
     steps:
-      - uses: actions/checkout@v4
-
-      - uses: pnpm/action-setup@v4
-
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
         with:
-          node-version: '20'
+          persist-credentials: false
+
+      - uses: pnpm/action-setup@fc06bc1257f339d1d5d8b3a19a8cae5388b55320 # v4.4.0
+
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: '20.18'
           cache: 'pnpm'
           registry-url: 'https://npm.pkg.github.com'
           scope: '@kubedoll-heavy-industries'
@@ -55,6 +66,18 @@ jobs:
 
       - name: Build
         run: pnpm run build
+
+      - name: Pack tarball (for attestation)
+        run: pnpm pack
+
+      - name: Attest build provenance
+        # Sigstore-signed provenance attestation. GitHub Packages does not (yet)
+        # support npm-cli `--provenance` (that flag uploads attestations to the
+        # public npm registry only). This step uploads to GitHub's attestation
+        # store, which consumers can verify via `gh attestation verify <tarball>`.
+        uses: actions/attest-build-provenance@e8998f949152b193b063cb0ec769d69d929409be # v2.4.0
+        with:
+          subject-path: '*.tgz'
 
       - name: Publish
         run: pnpm publish --no-git-checks --access public
